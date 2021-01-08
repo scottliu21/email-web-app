@@ -1,0 +1,380 @@
+#
+# CSE183 Assignment 9 Backend
+#
+
+openapi: '3.0.3'
+
+info:
+  description: CSE183 Assignment 9 Backend
+  version: 0.1.0
+  title: CSE183 Assignment 9 Backend
+
+servers:
+  - url: http://localhost:3010
+
+paths:
+  /v0/mail:
+    get:
+      description: Returns all EMail
+      parameters:
+        - name: mailbox
+          in: query
+          description: Name of mailbox
+          required: false
+          explode: true
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: Identify by from
+          required: false
+          explode: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Email Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Emails'
+        404:
+          description: Mailbox not found
+        default:
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      description: Saves a new email into the sent mailbox
+      requestBody:
+        description: Email to add
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostEmail'
+      responses:
+        201:
+          description: Application response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Email'
+        400:
+          description: Mail has unexpected properties
+        default:
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v0/mail/getCount:
+    get:
+      description: Returns count of unread mail
+      parameters:
+        - in: query
+          name: mailbox
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Returned count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewCount'
+
+  /v0/mail/getMailboxList:
+    get:
+      description: Returns list of all mailboxes
+      responses:
+        200:
+          description: List of mailboxes returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MailboxList'
+
+  /v0/mail/newMailbox:
+    post:
+      description: Creates a new mailbox
+      parameters:
+        - in: query
+          name: mailbox
+          required: true
+          schema:
+            type: string
+      responses:
+        201:
+          description: Mailbox has been created
+
+  /v0/mail/starred:
+    get:
+      description: Returns all starred email
+      responses:
+        200:
+          description: Starred Emails found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Emails'
+        404:
+          description: No starred mail
+
+  /v0/mail/view/{id}:
+    patch:
+      description: Toggles viewed status
+      parameters:
+      - name: id
+        in: path
+        description: Id of email
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: Viewed status has been toggled
+          content:
+            application/json:
+              schema:
+                type: boolean
+        404:
+          description: ID does not indentify known email
+        400:
+          description: ID is invalid
+
+  /v0/mail/{id}:
+    get:
+      description: Returns a single email
+      parameters:
+      - name: id
+        in: path
+        description: id of the email
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: Email found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MailBox'
+        404:
+          description: Id does not identify known email
+        default:
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      description: Move email by id into named mailbox
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - name: mailbox
+          in: query
+          description: Name of mailbox
+          required: true
+          explode: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: Email has been moved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Email'
+        404:
+          description: Id does not identify known email
+        409:
+          description: Named mailbox is 'sent' and mail is not already in 'sent' mailbox
+        400:
+          description: Id is invalid
+
+    patch:
+      description: Updates starred status
+      parameters:
+        - name: id
+          in: path
+          description: Id of email
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Starred has been toggle
+          content:
+            application/json:
+              schema:
+                type: boolean
+        404:
+          description: ID does not indentify known email
+        400:
+          description: ID is invalid
+
+components:
+  schemas:
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+
+    ViewCount:
+      type: object
+      properties:
+        count:
+          type: integer
+
+    MailboxList:
+      type: array
+      items:
+        type: string
+
+    MailBox:
+      type: object
+      properties:
+        name:
+          type: string
+        mail:
+          type: array
+          items:
+            anyOf:
+              - $ref: '#/components/schemas/Email'
+              - $ref: '#/components/schemas/MailboxEmail'
+
+    Emails:
+      type: array
+      items:
+        $ref: '#/components/schemas/MailBox'
+
+    Email:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+        to:
+          type: object
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+          required:
+            - name
+            - email
+        from:
+          type: object
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+          required:
+            - name
+            - email
+        subject:
+          type: string
+        sent:
+          type: string
+          format: date-time
+        received:
+          type: string
+          format: date-time
+        content:
+          type: string
+      required:
+        - id
+        - to
+        - from
+        - subject
+        - sent
+        - received
+        - content
+
+    PostEmail:
+      type: object
+      properties:
+        to:
+          type: object
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+          required:
+            - name
+            - email
+        subject:
+          type: string
+        content:
+          type: string
+      required:
+        - to
+        - subject
+        - content
+
+    MailboxEmail:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+        to:
+          type: object
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+          required:
+            - name
+            - email
+        from:
+          type: object
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+          required:
+            - name
+            - email
+        subject:
+          type: string
+        sent:
+          type: string
+          format: date-time
+        received:
+          type: string
+          format: date-time
+      required:
+        - id
+        - to
+        - from
+        - subject
+        - received
+        - sent
